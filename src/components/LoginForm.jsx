@@ -1,13 +1,16 @@
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
-import { loginWithEmail } from '../services/authService'
+import { useAuth } from './auth/AuthProvider'
 
 function LoginForm() {
   const navigate = useNavigate()
+  const { signIn } = useAuth()
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,18 +20,13 @@ function LoginForm() {
     event.preventDefault()
     if (submitting.current) return
 
-    if (!email.trim() || !password) {
+    if (!username.trim() || !password) {
       Swal.fire({
         icon: 'warning',
         title: 'Campos incompletos',
-        text: 'Ingresá tu correo electrónico y contraseña.',
+        text: 'Ingresá tu nombre de usuario y contraseña.',
         confirmButtonColor: '#29dba0',
       })
-      return
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      Swal.fire({ icon: 'warning', title: 'Correo inválido', text: 'Ingresá un correo electrónico válido.', confirmButtonColor: '#29dba0' })
       return
     }
 
@@ -36,7 +34,8 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      const profile = await loginWithEmail(email, password)
+      const profile = await signIn(username, password)
+      if (!mounted.current) return
 
       if (profile.role === 'admin') {
         navigate('/admin', { replace: true })
@@ -44,6 +43,7 @@ function LoginForm() {
         navigate('/reservas', { replace: true })
       }
     } catch (error) {
+      if (!mounted.current) return
       Swal.fire({
         icon: 'error',
         title: 'No se pudo ingresar',
@@ -52,14 +52,14 @@ function LoginForm() {
       })
     } finally {
       submitting.current = false
-      setLoading(false)
+      if (mounted.current) setLoading(false)
     }
   }
 
   return (
     <form className="login-form" onSubmit={handleSubmit}>
       <div className="login-field">
-        <label htmlFor="email">Correo electrónico</label>
+        <label htmlFor="username">Nombre de usuario</label>
 
         <div className="login-input-wrapper">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -69,13 +69,13 @@ function LoginForm() {
           </svg>
 
           <input
-            id="email"
-            name="email"
-            type="email"
+            id="username"
+            name="username"
+            type="text"
             autoComplete="username"
-            placeholder="Correo electrónico"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Nombre de usuario"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
             disabled={loading}
             required
           />

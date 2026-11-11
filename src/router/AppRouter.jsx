@@ -1,3 +1,4 @@
+import RequireAdmin from '../components/auth/RequireAdmin.jsx'
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
@@ -31,7 +32,7 @@ function AppRouter() {
       </Route>
       <Route path="/admin" element={
         <Suspense fallback={<p role="status">Cargando el panel administrativo…</p>}>
-          <AdminLayout />
+          <RequireAdmin><AdminLayout /></RequireAdmin>
         </Suspense>
       }>
         <Route index element={<AdminPage />} />

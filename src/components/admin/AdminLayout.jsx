@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthProvider'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import AdminProvider, { useAdmin } from './AdminProvider.jsx'
@@ -13,6 +14,7 @@ const navigation = [
 ]
 
 function AdminShell() {
+  const { signOut } = useAuth()
   const { administrator, administrators, setAdminId, notice, clearNotice } = useAdmin()
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
@@ -26,6 +28,7 @@ function AdminShell() {
       <p className="admin-nav-caption">ESPACIO DE GESTIÓN</p>
       <nav className="admin-navigation" aria-label="Menú principal administrativo">{navigation.map((item) => <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMenuOpen(false)}><AdminIcon name={item.icon} />{item.name}</NavLink>)}</nav>
       <div className="admin-sidebar-bottom">
+        <button className="admin-button" onClick={signOut}>Cerrar sesión</button>
         <NavLink className="admin-settings-link" to="/admin/configuracion" onClick={() => setMenuOpen(false)}><AdminIcon name="settings" />Configuración</NavLink>
         <div className="admin-identity"><AdminAvatar member={administrator} /><div><strong>{administrator.name}</strong><small>{administrator.role}</small></div></div>
         <label className="admin-switcher">Administrador de ejemplo<select value={administrator.id} onChange={(event) => setAdminId(event.target.value)}>{administrators.map((admin) => <option key={admin.id} value={admin.id}>{admin.name}</option>)}</select></label>

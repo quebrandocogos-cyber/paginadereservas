@@ -8,18 +8,19 @@ import { createServer } from 'vite'
 test('las vistas del socio renderizan con las rutas y el estado compartido', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
   try {
+    const { default: AuthProvider } = await server.ssrLoadModule('/src/components/auth/AuthProvider.jsx')
     const { default: Layout } = await server.ssrLoadModule('/src/components/member/MemberLayout.jsx')
     const { default: Home } = await server.ssrLoadModule('/src/pages/ReservasPage.jsx')
     const { default: Profile } = await server.ssrLoadModule('/src/pages/MemberProfilePage.jsx')
     const { default: Information } = await server.ssrLoadModule('/src/pages/MemberInformationPage.jsx')
     function render(path) {
-      return renderToString(h(MemoryRouter, { initialEntries: [path] },
+      return renderToString(h(AuthProvider, null, h(MemoryRouter, { initialEntries: [path] },
         h(Routes, null, h(Route, { path: '/reservas', element: h(Layout) },
           h(Route, { index: true, element: h(Home) }),
           h(Route, { path: 'perfil', element: h(Profile) }),
           h(Route, { path: 'informacion/:slug', element: h(Information) }),
         )),
-      ))
+      )))
     }
     const home = render('/reservas')
     assert.match(home, /Nuestras variedades/)

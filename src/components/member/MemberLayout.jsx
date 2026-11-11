@@ -1,9 +1,15 @@
 import { useEffect } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthProvider'
 import MemberProvider, { useMember } from './MemberProvider.jsx'
 import '../../Style/Member.css'
 
 function MemberShell() {
+  const { signOut, loading, error } = useAuth()
+  const navigate = useNavigate()
+  async function handleLogout() {
+    if (await signOut()) navigate('/', { replace: true })
+  }
   const { member } = useMember()
   const { pathname, hash } = useLocation()
 
@@ -28,7 +34,8 @@ function MemberShell() {
             <Link className="member-avatar-link" to="/reservas/perfil" aria-label="Mi perfil">
               <img src={member.photo} alt="" className="member-avatar" /><span className="member-avatar-label">Mi perfil</span>
             </Link>
-            <button className="member-logout" disabled title="Cerrar sesión estará disponible en una próxima etapa">Cerrar sesión <small>(próximamente)</small></button>
+            <button className="member-logout" disabled={loading} onClick={handleLogout}>Cerrar sesión</button>
+            {error && <span role="alert">{error}</span>}
           </div>
         </div>
       </header>

@@ -1,5 +1,64 @@
 import { supabase } from "./supabaseClient";
 
+export async function restoreAccess() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error('No se pudo recuperar la sesión.');
+  if (!data.session) return null;
+  const result = await supabase.auth.getUser();
+  if (result.error || !result.data?.user?.id) throw new Error('No se pudo verificar el usuario autenticado.');
+  const id = result.data.user.id;
+  if (data.session.user?.id !== id) throw new Error('La sesión no coincide con el usuario autenticado.');
+  const { data: profile, error: queryError } = await supabase.from('profiles').select('id, role, status').eq('id', id).maybeSingle();
+  if (queryError) throw new Error('No se pudo consultar el perfil.');
+  if (!profile || profile.id !== id || profile.status !== 'active' || !['admin', 'member'].includes(profile.role)) throw new Error('El perfil no tiene acceso habilitado.');
+  return profile;
+}
+
+export async function logout() {
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
+  if (error) throw new Error('No se pudo cerrar la sesión.');
+}
+
+export async function loginWithUsername(username, password) {
+  const normalized = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  if (!normalized || typeof password !== 'string' || !password) throw new Error('Ingresá tu nombre de usuario y contraseña.');
+  let response;
+  try {
+    response = await supabase.functions.invoke('login-with-username', {
+      body: { username: normalized, password },
+    });
+  } catch {
+    throw new Error('No se pudo conectar con el servicio de ingreso. Intentá nuevamente.');
+  }
+  if (response.error) {
+    // No mostrar cuerpos remotos: pueden incluir correos, tokens o detalles internos.
+    const status = response.error.context?.status;
+    if (Number.isInteger(status)) {
+      if (status === 429) throw new Error('Demasiados intentos. Esperá antes de volver a ingresar.');
+      if (status >= 500) throw new Error(`El servicio login-with-username falló (HTTP ${status}). Se requiere corregir la función en Supabase.`);
+      if ([400, 401, 403].includes(status)) throw new Error('No se pudo iniciar sesión. Verificá tus credenciales o consultá al administrador.');
+      throw new Error('El servicio de ingreso rechazó la solicitud. Consultá al administrador.');
+    }
+    throw new Error('No se pudo conectar con el servicio de ingreso. Intentá nuevamente.');
+  }
+  const session = response.data?.session;
+  if (response.data?.error || typeof session?.access_token !== 'string' || !session.access_token || typeof session?.refresh_token !== 'string' || !session.refresh_token) {
+    throw new Error('El servicio de ingreso no devolvió una sesión válida. Consultá al administrador.');
+  }
+  try {
+    const { data, error } = await supabase.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    if (error || !data?.session) throw new Error();
+    // La autorización proviene del perfil consultado por UUID, no de la respuesta de la función.
+    const profile = await restoreAccess();
+    if (!profile || profile.id !== data.session.user?.id) throw new Error();
+    return profile;
+  } catch {
+    try { await logout(); }
+    catch { throw new Error('No se pudo validar el acceso ni cerrar la sesión local. Intentá cerrar sesión nuevamente.'); }
+    throw new Error('No se pudo validar el acceso. La sesión se cerró.');
+  }
+}
+
 const profileDiagnostics = {
   AUTH_RESPONSE_INVALID: "La respuesta de autenticación no contiene usuario y sesión válidos.",
   AUTH_UUID_MISMATCH: "El usuario autenticado no coincide con el usuario de la sesión.",
